@@ -30,25 +30,35 @@ To keep the client lean, we use **Material/Model IDs**.
 - **Pattern**: `entity.update({ material: 'nitro_concrete_wall' })`
 - **Process**: The client sends the ID $\to$ NitroXR Cloud resolves the ID $\to$ The high-res texture is streamed to the GPU.
 
-### B. The Deterministic Loop
-To prevent VR motion sickness, the engine follows a strict sequence:
-`Input Polling` $\to$ `Physics/Collision` $\to$ `State Update` $\to$ `Render`.
+### B. The Game Loop (Deterministic XR)
+To prevent VR motion sickness, the engine follows a strict, high-frequency sequence:
+`Input Polling` $\to$ `Logic/Physics` $\to$ `State Update` $\to$ `Render`.
+This ensures that the visual update matches the user's physical movement perfectly.
 
-### C. Asynchronous Data Layer (`NitroXR.Cloud`)
+### C. The Social Layer (Async Cloud)
 All network operations are asynchronous to prevent "frame drops."
 - **Leaderboards**: `NitroXR.Cloud.submit({ gameId, userId, value })`
-- **Ghosting**: `NitroXR.Cloud.getGhost(userId)` returns a compressed array of `{x, z, t}` coordinates.
+- **Ghosting**: `NitroXR.Cloud.getGhost(userId)` returns a compressed array of `{x, z, t}` coordinates for asynchronous racing.
 - **UGC**: `NitroXR.Cloud.submit({ gameId: 'editor', layoutId, data })` saves spatial configurations.
 
 ---
 
-## 3. Implementation Guidelines for Developers
+## 3. Developer Guide: Testing without XR Hardware
 
-### Creating a New Game
-1. **Define the Vibe**: Use a Mission Script to set the frequency (Stealth vs. Market-Capture).
-2. **Build the Brain**: Implement the logic using the `NitroXR.Scene` API.
-3. **Reference the Body**: Use official NitroXR material IDs for visuals.
-4. **Enable the Social Layer**: Integrate `NitroXR.Cloud` for competitive features.
+To iterate quickly without a headset, developers should use a **Mock Runtime**.
 
-### Testing without XR Hardware
-Use a **Mock Runtime** (e.g., `mock-nitroxr.js`) to simulate the `Scene` and `Cloud` objects in a standard browser environment. This allows for rapid logic iteration before deploying to a headset.
+### Using `mock-nitroxr.js`
+1. Include the `mock-nitroxr.js` script in a standard HTML file.
+2. This script simulates the `NitroXR.Scene` and `NitroXR.Cloud` objects.
+3. Run the game in a browser and monitor the `console.log` for state changes and cloud submissions.
+
+---
+
+## 4. NitroXR SDK Implementation Strategy
+
+The SDK is designed as a **Global Singleton** provided by the runtime environment.
+
+- **Scene Management**: `new NitroXR.Scene()` initializes the local spatial graph.
+- **Entity System**: `scene.createEntity(id, props)` creates a 3D object linked to the Cloud Body.
+- **Input Handling**: `NitroXR.onUpdate(callback)` provides a stream of XR controller/headset inputs.
+- **Cloud Interface**: `NitroXR.Cloud` handles the persistence of high-scores and ghost paths.
