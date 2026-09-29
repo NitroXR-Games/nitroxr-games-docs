@@ -29,11 +29,16 @@ The Body is a distributed set of services that provide the sensory experience.
 - **Logic Language**: JavaScript/TypeScript.
 
 ### Backend (The Cloud)
-- **API Layer**: Node.js / Fastify (High-throughput, low-latency).
-- **Database**: 
-  - **MongoDB/PostgreSQL**: For user data and UGC layouts.
-  - **Redis**: For real-time leaderboard caching.
-- **Storage**: AWS S3 or similar for hosting `.glb` and texture files.
+- **API Layer**: Cloudflare Workers (deployed at `https://cloud.nitroxr.com`).
+- **Database**:
+  - **Cloudflare KV**: For the asset registry, ghosts, and UGC maze layouts.
+    *As implemented.* The original blueprint proposed MongoDB/PostgreSQL; KV was
+    chosen because every current payload (asset entries, ghost paths, layout cell
+    lists) is read by key and written whole, so no query layer is needed yet.
+  - **Redis**: Deferred — the leaderboard currently reads through to KV.
+- **Storage**: Cloudflare R2 (`.glb` models, served via
+  `https://games-assets.nitroxr.com`). Model textures are **embedded in the GLB**
+  as `baseColorTexture`; there are no separate texture objects to host.
 
 ---
 
@@ -42,7 +47,7 @@ The Body is a distributed set of services that provide the sensory experience.
 `Input (XR Controller)` $\to$ `NitroXR.onUpdate()` $\to$ `User Logic` $\to$ `NitroXR.Scene.update()` $\to$ `Renderer` $\to$ `GPU`.
 
 **Cloud Interaction Flow:**
-`Request Asset ID` $\to$ `NitroXR Cloud Registry` $\to$ `S3 Stream` $\to$ `GPU Texture/Mesh`.
+`Request Asset ID` $\to$ `NitroXR Cloud Registry` $\to$ `R2 Stream` $\to$ `GPU Texture/Mesh`.
 
 ---
 
@@ -59,7 +64,28 @@ To ensure a professional XR experience, the engine must enforce these "Golden Ru
 
 ## 5. Roadmap to "Gold Master" (The Laps)
 
-The engine will be built in three phases:
+The engine is built in three phases:
 1. **The Skeleton (Laps 1-4)**: Scene Graph $\to$ Asset Resolver $\to$ Physics $\to$ XR Input.
 2. **The Nervous System (Laps 5-7)**: Cloud API $\to$ Ghosting $\to$ UGC Persistence.
 3. **The Skin (Laps 8-10)**: Culling/Optimization $\to$ DevTools $\to$ SDK Release.
+
+| Lap | Scope | Status |
+|-----|-------|--------|
+| 1 | Scene graph | Done |
+| 2 | Asset resolver | Done |
+| 3 | Physics | Done |
+| 4 | XR input | **Unverified** — code complete, no headset has run it |
+| 5 | Cloud API | Done |
+| 6 | Ghosting | Done |
+| 7 | UGC persistence | Done — `/layouts` in KV, cloud-first with a local cache |
+| 8 | Culling / optimization | Not started |
+| 9 | DevTools | Partial |
+| 10 | SDK release | Partial — published to npm, docs lag the API |
+
+**Lap 4 is the only open blocker in phases 1-2.** A code review found and fixed
+head-relative locomotion (`Scene.getViewYaw()`), but that is not a substitute for
+a hardware pass. Until a headset is driven, Lap 4 stays unverified.
+
+**Layouts are unauthenticated.** Every Worker write path — ghosts, assets,
+layouts — is open. That is acceptable while layouts are self-authored, and
+becomes a griefing vector the moment layouts are shared between players.
